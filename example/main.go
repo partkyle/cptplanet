@@ -21,7 +21,7 @@ func (m *multistring) String() string {
 }
 
 func main() {
-	env := cptplanet.NewEnvironment("EXAMPLE_")
+	env := cptplanet.NewEnvironment(cptplanet.Settings{Prefix: "EXAMPLE_"})
 	env.ErrorOnExtraKeys = true
 	env.ErrorOnMissingKeys = true
 

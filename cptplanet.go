@@ -22,44 +22,47 @@ var l = logger(false)
 
 type Value flag.Value
 
-type EnvSet struct {
-	prefix string
-	*flag.FlagSet
-
+type Settings struct {
+	Prefix             string
 	ErrorOnExtraKeys   bool
 	ErrorOnMissingKeys bool
+}
+
+var DefaultSettings = Settings{Prefix: getAppName(os.Args[0]) + "_"}
+
+type EnvSet struct {
+	Settings
+
+	*flag.FlagSet
 
 	visited map[string]bool
 }
 
-func NewEnvironment(prefix string) *EnvSet {
+func NewEnvironment(settings Settings) *EnvSet {
 	return &EnvSet{
-		prefix:             prefix,
-		FlagSet:            flag.NewFlagSet(prefix, flag.ExitOnError),
-		ErrorOnExtraKeys:   false,
-		ErrorOnMissingKeys: false,
-
-		visited: make(map[string]bool, 0),
+		Settings: settings,
+		FlagSet:  flag.NewFlagSet("", flag.ExitOnError),
+		visited:  make(map[string]bool, 0),
 	}
 }
 
 func (e *EnvSet) PrintDefaults() {
 	fmt.Printf("## Example Usage:\n")
 	e.FlagSet.VisitAll(func(f *flag.Flag) {
-		fmt.Printf("# %s\nexport %s%s=%q\n", f.Usage, e.prefix, f.Name, f.DefValue)
+		fmt.Printf("# %s\nexport %s%s=%q\n", f.Usage, e.Prefix, f.Name, f.DefValue)
 	})
 }
 
 func (e *EnvSet) Parse() error {
 	for _, arg := range os.Environ() {
-		if strings.HasPrefix(arg, e.prefix) {
+		if strings.HasPrefix(arg, e.Prefix) {
 			// split env on "="
 			s := strings.SplitN(arg, "=", 2)
 
 			envKey := s[0]
 
-			// remove the prefix from the key
-			key := strings.TrimPrefix(envKey, e.prefix)
+			// remove the Prefix from the key
+			key := strings.TrimPrefix(envKey, e.Prefix)
 			value := s[1]
 
 			l.Printf("setting %s => %s", key, value)
@@ -82,20 +85,23 @@ func (e *EnvSet) Parse() error {
 	if e.ErrorOnMissingKeys {
 		errors := make([]string, 0)
 		e.VisitAll(func(f *flag.Flag) {
-			if !e.visited[e.prefix+f.Name] {
-				errors = append(errors, fmt.Sprintf("missing key: %s%s", e.prefix, f.Name))
+			if !e.visited[e.Prefix+f.Name] {
+				errors = append(errors, fmt.Sprintf("missing key: %s%s", e.Prefix, f.Name))
 			}
 		})
 
-		allErrs := strings.Join(errors, "; ")
-		return fmt.Errorf(allErrs)
+		if len(errors) > 0 {
+			e.PrintDefaults()
+			allErrs := strings.Join(errors, "; ")
+			return fmt.Errorf(allErrs)
+		}
 	}
 
 	return nil
 }
 
-// default prefix is the executable name
-var Environment = NewEnvironment(getAppName(os.Args[0]) + "_")
+// default Prefix is the executable name
+var Environment = NewEnvironment(DefaultSettings)
 
 func Int(name string, value int, usage string) *int {
 	return Environment.Int(name, value, usage)
