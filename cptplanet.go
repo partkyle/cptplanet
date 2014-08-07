@@ -26,20 +26,18 @@ type EnvSet struct {
 	prefix string
 	*flag.FlagSet
 
-	ErrorOnParseFailures bool
-	ErrorOnExtraKeys     bool
-	ErrorOnMissingKeys   bool
+	ErrorOnExtraKeys   bool
+	ErrorOnMissingKeys bool
 
 	visited map[string]bool
 }
 
 func NewEnvironment(prefix string) *EnvSet {
 	return &EnvSet{
-		prefix:               prefix,
-		FlagSet:              flag.NewFlagSet(prefix, flag.ExitOnError),
-		ErrorOnParseFailures: true,
-		ErrorOnExtraKeys:     false,
-		ErrorOnMissingKeys:   false,
+		prefix:             prefix,
+		FlagSet:            flag.NewFlagSet(prefix, flag.ExitOnError),
+		ErrorOnExtraKeys:   false,
+		ErrorOnMissingKeys: false,
 
 		visited: make(map[string]bool, 0),
 	}
@@ -68,12 +66,12 @@ func (e *EnvSet) Parse() error {
 
 			err := e.Set(key, value)
 			if err != nil {
-				// allow for configuration of erroring on extra keys
-				if strings.HasPrefix(err.Error(), "no such flag -") && e.ErrorOnExtraKeys {
-					e.PrintDefaults()
-					return fmt.Errorf("unexpected environment variable: %s%s", e.prefix, strings.TrimPrefix(err.Error(), "no such flag -"))
+				// skip this error if it is a extra key provided error
+				if !e.ErrorOnExtraKeys && strings.HasPrefix(err.Error(), "no such flag -") {
+					continue
 				}
 
+				e.PrintDefaults()
 				return err
 			}
 
