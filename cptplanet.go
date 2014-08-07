@@ -12,7 +12,9 @@ import (
 type logger bool
 
 func (l *logger) Printf(s string, v ...interface{}) {
-	log.Printf(s, v...)
+	if *l {
+		log.Printf(s, v...)
+	}
 }
 
 var l = logger(false)
