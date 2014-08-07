@@ -20,13 +20,6 @@ func (l *logger) Printf(s string, v ...interface{}) {
 
 var l = logger(false)
 
-type Options int
-
-const (
-	ErrorOnMissingKeys Options = iota << 2
-	ErrorOnExtraKeys
-)
-
 type Value flag.Value
 
 type EnvSet struct {
@@ -36,6 +29,8 @@ type EnvSet struct {
 	ErrorOnParseFailures bool
 	ErrorOnExtraKeys     bool
 	ErrorOnMissingKeys   bool
+
+	visited map[string]bool
 }
 
 func NewEnvironment(prefix string) *EnvSet {
@@ -45,6 +40,8 @@ func NewEnvironment(prefix string) *EnvSet {
 		ErrorOnParseFailures: true,
 		ErrorOnExtraKeys:     false,
 		ErrorOnMissingKeys:   false,
+
+		visited: make(map[string]bool, 0),
 	}
 }
 
@@ -61,8 +58,10 @@ func (e *EnvSet) Parse() error {
 			// split env on "="
 			s := strings.SplitN(arg, "=", 2)
 
+			envKey := s[0]
+
 			// remove the prefix from the key
-			key := strings.TrimPrefix(s[0], e.prefix)
+			key := strings.TrimPrefix(envKey, e.prefix)
 			value := s[1]
 
 			l.Printf("setting %s => %s", key, value)
@@ -77,7 +76,21 @@ func (e *EnvSet) Parse() error {
 
 				return err
 			}
+
+			e.visited[envKey] = true
 		}
+	}
+
+	if e.ErrorOnMissingKeys {
+		errors := make([]string, 0)
+		e.VisitAll(func(f *flag.Flag) {
+			if !e.visited[e.prefix+f.Name] {
+				errors = append(errors, fmt.Sprintf("missing key: %s%s", e.prefix, f.Name))
+			}
+		})
+
+		allErrs := strings.Join(errors, "; ")
+		return fmt.Errorf(allErrs)
 	}
 
 	return nil

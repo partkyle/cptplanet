@@ -23,6 +23,7 @@ func (m *multistring) String() string {
 func main() {
 	env := cptplanet.NewEnvironment("EXAMPLE_")
 	env.ErrorOnExtraKeys = true
+	env.ErrorOnMissingKeys = true
 
 	host := env.String("HOST", "127.0.0.1", "host to bind")
 	port := env.Int("PORT", 9999, "port to bind")
