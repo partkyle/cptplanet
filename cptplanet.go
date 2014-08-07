@@ -2,6 +2,7 @@ package cptplanet
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -33,11 +34,18 @@ func NewEnvironment(prefix string) *EnvSet {
 	}
 }
 
+func (e *EnvSet) PrintDefaults() {
+	fmt.Printf("## Example Usage:\n")
+	e.FlagSet.VisitAll(func(f *flag.Flag) {
+		fmt.Printf("# %s\nexport %s%s=%q\n", f.Usage, e.prefix, f.Name, f.DefValue)
+	})
+}
+
 func (e *EnvSet) Parse() error {
 	for _, arg := range os.Environ() {
 		if strings.HasPrefix(arg, e.prefix) {
 			// split env on "="
-			s := strings.Split(arg, "=")
+			s := strings.SplitN(arg, "=", 2)
 
 			// remove the prefix from the key
 			key := strings.TrimPrefix(s[0], e.prefix)
@@ -47,6 +55,7 @@ func (e *EnvSet) Parse() error {
 
 			err := e.Set(key, value)
 			if err != nil {
+				e.PrintDefaults()
 				return err
 			}
 		}

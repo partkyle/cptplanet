@@ -31,7 +31,7 @@ func main() {
 
 	err := cptplanet.Parse()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("%v", err)
 	}
 
 	log.Printf("host=%v port=%v debug=%v timeout=%v kafkas=%v", *host, *port, *debug, *timeout, kafkas)
