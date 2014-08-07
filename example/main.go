@@ -21,15 +21,18 @@ func (m *multistring) String() string {
 }
 
 func main() {
-	host := cptplanet.String("HOST", "127.0.0.1", "host to bind")
-	port := cptplanet.Int("PORT", 9999, "port to bind")
-	debug := cptplanet.Bool("DEBUG", false, "to debug or not to debug?")
-	timeout := cptplanet.Duration("TIMEOUT", 5*time.Second, "timeout duration")
+	env := cptplanet.NewEnvironment("EXAMPLE_")
+	env.ErrorOnExtraKeys = true
+
+	host := env.String("HOST", "127.0.0.1", "host to bind")
+	port := env.Int("PORT", 9999, "port to bind")
+	debug := env.Bool("DEBUG", false, "to debug or not to debug?")
+	timeout := env.Duration("TIMEOUT", 5*time.Second, "timeout duration")
 
 	var kafkas multistring
-	cptplanet.Var(&kafkas, "KAFKAS", "kafka hosts to connect to")
+	env.Var(&kafkas, "KAFKAS", "kafka hosts to connect to")
 
-	err := cptplanet.Parse()
+	err := env.Parse()
 	if err != nil {
 		log.Fatalf("%v", err)
 	}

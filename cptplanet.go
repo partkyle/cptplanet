@@ -20,17 +20,31 @@ func (l *logger) Printf(s string, v ...interface{}) {
 
 var l = logger(false)
 
+type Options int
+
+const (
+	ErrorOnMissingKeys Options = iota << 2
+	ErrorOnExtraKeys
+)
+
 type Value flag.Value
 
 type EnvSet struct {
 	prefix string
 	*flag.FlagSet
+
+	ErrorOnParseFailures bool
+	ErrorOnExtraKeys     bool
+	ErrorOnMissingKeys   bool
 }
 
 func NewEnvironment(prefix string) *EnvSet {
 	return &EnvSet{
-		prefix:  prefix,
-		FlagSet: flag.NewFlagSet(prefix, flag.ExitOnError),
+		prefix:               prefix,
+		FlagSet:              flag.NewFlagSet(prefix, flag.ExitOnError),
+		ErrorOnParseFailures: true,
+		ErrorOnExtraKeys:     false,
+		ErrorOnMissingKeys:   false,
 	}
 }
 
@@ -55,7 +69,12 @@ func (e *EnvSet) Parse() error {
 
 			err := e.Set(key, value)
 			if err != nil {
-				e.PrintDefaults()
+				// allow for configuration of erroring on extra keys
+				if strings.HasPrefix(err.Error(), "no such flag -") && e.ErrorOnExtraKeys {
+					e.PrintDefaults()
+					return fmt.Errorf("unexpected environment variable: %s%s", e.prefix, strings.TrimPrefix(err.Error(), "no such flag -"))
+				}
+
 				return err
 			}
 		}
