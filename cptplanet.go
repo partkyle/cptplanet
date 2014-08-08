@@ -20,6 +20,35 @@ func (l *logger) Printf(s string, v ...interface{}) {
 
 var l = logger(false)
 
+type ParseErr struct {
+	MissingKeys []string
+	ExtraKeys   []string
+}
+
+func (p *ParseErr) isError() bool {
+	return len(p.MissingKeys) > 0 || len(p.ExtraKeys) > 0
+}
+
+func (p *ParseErr) addMissing(key string) {
+	if p.MissingKeys == nil {
+		p.MissingKeys = make([]string, 0, 1)
+	}
+
+	p.MissingKeys = append(p.MissingKeys, key)
+}
+
+func (p *ParseErr) addExtra(key string) {
+	if p.ExtraKeys == nil {
+		p.ExtraKeys = make([]string, 0, 1)
+	}
+
+	p.ExtraKeys = append(p.ExtraKeys, key)
+}
+
+func (p *ParseErr) Error() string {
+	return fmt.Sprintf("Missing keys: %v, Extra keys: %v", p.MissingKeys, p.ExtraKeys)
+}
+
 type Value flag.Value
 
 type Settings struct {
@@ -54,6 +83,8 @@ func (e *EnvSet) PrintDefaults() {
 }
 
 func (e *EnvSet) Parse() error {
+	parseErr := &ParseErr{}
+
 	for _, arg := range os.Environ() {
 		if strings.HasPrefix(arg, e.Prefix) {
 			// split env on "="
@@ -70,14 +101,13 @@ func (e *EnvSet) Parse() error {
 			err := e.Set(key, value)
 			if err != nil {
 				if strings.HasPrefix(err.Error(), "no such flag -") {
-					// ignore this error if we don't care about extra keys
-					if !e.ErrorOnExtraKeys {
-						continue
+					if e.ErrorOnExtraKeys {
+						parseErr.addExtra(envKey)
 					}
-					err = fmt.Errorf("no such variable: %q", envKey)
+
+					continue
 				}
 
-				e.PrintDefaults()
 				return err
 			}
 
@@ -86,18 +116,15 @@ func (e *EnvSet) Parse() error {
 	}
 
 	if e.ErrorOnMissingKeys {
-		errors := make([]string, 0)
 		e.VisitAll(func(f *flag.Flag) {
 			if !e.visited[e.Prefix+f.Name] {
-				errors = append(errors, fmt.Sprintf("missing key: %s%s", e.Prefix, f.Name))
+				parseErr.addMissing(e.Prefix + f.Name)
 			}
 		})
+	}
 
-		if len(errors) > 0 {
-			e.PrintDefaults()
-			allErrs := strings.Join(errors, "; ")
-			return fmt.Errorf(allErrs)
-		}
+	if parseErr.isError() {
+		return parseErr
 	}
 
 	return nil
