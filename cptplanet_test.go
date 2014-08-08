@@ -17,7 +17,7 @@ func TestBasicEnvironment(t *testing.T) {
 	expectedString := "this is a string value"
 	os.Setenv("STRING", expectedString)
 	expectedInt := 101
-	os.Setenv("INT", fmt.Sprintf("%d", 101))
+	os.Setenv("INT", fmt.Sprintf("%d", expectedInt))
 	expectedBool := true
 	os.Setenv("BOOL", fmt.Sprintf("%v", expectedBool))
 	expectedDuration := 1*time.Minute + 3*time.Second
@@ -48,7 +48,11 @@ func TestBasicEnvironment(t *testing.T) {
 		t.Errorf("Unexpected default; have %s got %s", defaultDuration, *d)
 	}
 
-	env.Parse()
+	err := env.Parse()
+
+	if err != nil {
+		t.Errorf("Unexpected error occurred during parsing: %s", err)
+	}
 
 	if *s != expectedString {
 		t.Errorf("Unexpected value; have %s got %s", expectedString, *s)
@@ -64,5 +68,64 @@ func TestBasicEnvironment(t *testing.T) {
 
 	if *d != expectedDuration {
 		t.Errorf("Unexpected value; have %s got %s", expectedDuration, *d)
+	}
+}
+
+func TestNoErrorsWhenNotUsingErrorOnExtraKeys(t *testing.T) {
+	// explicit
+	settings := Settings{ErrorOnExtraKeys: false}
+	env := NewEnvironment(settings)
+
+	os.Clearenv()
+
+	expectedString := "this is a string value"
+	os.Setenv("STRING", expectedString)
+	expectedInt := 101
+	os.Setenv("INT", fmt.Sprintf("%d", expectedInt))
+
+	err := env.Parse()
+
+	if err != nil {
+		t.Errorf("Unexpected error; got %s", err)
+	}
+}
+
+func TestErrorOnExtraKeys(t *testing.T) {
+	settings := Settings{ErrorOnExtraKeys: true}
+	env := NewEnvironment(settings)
+
+	os.Clearenv()
+
+	expectedString := "this is a string value"
+	os.Setenv("STRING", expectedString)
+	expectedInt := 101
+	os.Setenv("INT", fmt.Sprintf("%d", expectedInt))
+
+	err := env.Parse()
+
+	if err == nil {
+		t.Error("Expected error; got nil")
+	}
+}
+
+func TestErrorOnExtraKeysAllUsed(t *testing.T) {
+	settings := Settings{ErrorOnExtraKeys: true}
+	env := NewEnvironment(settings)
+
+	os.Clearenv()
+
+	expectedString := "this is a string value"
+	os.Setenv("STRING", expectedString)
+	expectedInt := 101
+	os.Setenv("INT", fmt.Sprintf("%d", expectedInt))
+
+	// consume the environment
+	env.String("STRING", "", "")
+	env.Int("INT", 0, "")
+
+	err := env.Parse()
+
+	if err != nil {
+		t.Error("Unexpected error; got %s", err)
 	}
 }

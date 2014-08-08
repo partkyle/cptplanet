@@ -69,9 +69,12 @@ func (e *EnvSet) Parse() error {
 
 			err := e.Set(key, value)
 			if err != nil {
-				// skip this error if it is a extra key provided error
-				if !e.ErrorOnExtraKeys && strings.HasPrefix(err.Error(), "no such flag -") {
-					continue
+				if strings.HasPrefix(err.Error(), "no such flag -") {
+					// ignore this error if we don't care about extra keys
+					if !e.ErrorOnExtraKeys {
+						continue
+					}
+					err = fmt.Errorf("no such variable: %q", envKey)
 				}
 
 				e.PrintDefaults()
