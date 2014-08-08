@@ -126,6 +126,26 @@ func TestErrorOnExtraKeysAllUsed(t *testing.T) {
 	err := env.Parse()
 
 	if err != nil {
-		t.Error("Unexpected error; got %s", err)
+		t.Errorf("Unexpected error; got %s", err)
+	}
+}
+
+func TestErrorOnMissingKeys(t *testing.T) {
+	settings := Settings{ErrorOnMissingKeys: true}
+	env := NewEnvironment(settings)
+
+	os.Clearenv()
+
+	expectedString := "this is a string value"
+	os.Setenv("STRING", expectedString)
+
+	// consume the environment
+	env.String("STRING", "", "")
+	env.Int("INT", 0, "")
+
+	err := env.Parse()
+
+	if err == nil {
+		t.Error("Expected error; got %s", err)
 	}
 }
