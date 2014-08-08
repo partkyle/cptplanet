@@ -21,13 +21,30 @@ func (l *logger) Printf(s string, v ...interface{}) {
 var l = logger(false)
 
 type ParseErr struct {
-	MissingKeys []string
-	ExtraKeys   []string
-	ParseErrors []string
+	MissingKeys   []string
+	ExtraKeys     []string
+	ParseErrors   []string
+	UnknownErrors []error
 }
 
 func (p *ParseErr) isError() bool {
-	return len(p.MissingKeys) > 0 || len(p.ExtraKeys) > 0 || len(p.ParseErrors) > 0
+	if len(p.MissingKeys) > 0 {
+		return true
+	}
+
+	if len(p.ExtraKeys) > 0 {
+		return true
+	}
+
+	if len(p.ParseErrors) > 0 {
+		return true
+	}
+
+	if len(p.UnknownErrors) > 0 {
+		return true
+	}
+
+	return false
 }
 
 func (p *ParseErr) addMissing(key string) {
@@ -54,8 +71,33 @@ func (p *ParseErr) addParseErr(key string) {
 	p.ParseErrors = append(p.ParseErrors, key)
 }
 
+func (p *ParseErr) addUnknownError(err error) {
+	if p.UnknownErrors == nil {
+		p.UnknownErrors = make([]error, 0, 1)
+	}
+
+	p.UnknownErrors = append(p.UnknownErrors, err)
+}
+
 func (p *ParseErr) Error() string {
-	return fmt.Sprintf("Missing keys: %v, Extra keys: %v, Parse Errors: %v", p.MissingKeys, p.ExtraKeys, p.ParseErrors)
+	errors := make([]string, 0)
+	if len(p.MissingKeys) > 0 {
+		errors = append(errors, fmt.Sprintf("Missing keys: %v", p.MissingKeys))
+	}
+
+	if len(p.ExtraKeys) > 0 {
+		errors = append(errors, fmt.Sprintf("Extra keys: %v", p.ExtraKeys))
+	}
+
+	if len(p.ParseErrors) > 0 {
+		errors = append(errors, fmt.Sprintf("Parse Errors: %v", p.ParseErrors))
+	}
+
+	if len(p.UnknownErrors) > 0 {
+		errors = append(errors, fmt.Sprintf("Unknown Errors: %v", p.UnknownErrors))
+	}
+
+	return strings.Join(errors, "; ")
 }
 
 type Value flag.Value
@@ -67,7 +109,7 @@ type Settings struct {
 	ErrorOnParseErrors bool
 }
 
-var DefaultSettings = Settings{Prefix: getAppName(os.Args[0]) + "_"}
+var DefaultSettings = Settings{Prefix: getAppName(os.Args[0]) + "_", ErrorOnParseErrors: true}
 
 type EnvSet struct {
 	Settings
@@ -110,28 +152,22 @@ func (e *EnvSet) Parse() error {
 
 			err := e.Set(key, value)
 			if err != nil {
-
-				if strings.HasPrefix(err.Error(), "no such flag -") {
+				switch {
+				case strings.HasPrefix(err.Error(), "no such flag -"):
 					if e.ErrorOnExtraKeys {
 						parseErr.addExtra(envKey)
 					}
-
-					continue
-				}
-
-				if strings.Contains(err.Error(), "invalid syntax") {
+				case strings.Contains(err.Error(), "invalid syntax"):
 					// replace the default value
 					originalFlag := e.Lookup(key)
 					e.Set(key, originalFlag.DefValue)
 
 					if e.ErrorOnParseErrors {
-						parseErr.addParseErr(envKey)
+						parseErr.addParseErr(fmt.Sprintf("%s=%s", envKey, value))
 					}
-
-					continue
+				default:
+					parseErr.addUnknownError(err)
 				}
-
-				return err
 			}
 
 			e.visited[envKey] = true

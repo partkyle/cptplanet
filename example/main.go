@@ -21,7 +21,7 @@ func (m *multistring) String() string {
 }
 
 func main() {
-	envSettings := cptplanet.Settings{Prefix: "EXAMPLE_", ErrorOnExtraKeys: false, ErrorOnMissingKeys: true}
+	envSettings := cptplanet.Settings{Prefix: "EXAMPLE_", ErrorOnExtraKeys: false, ErrorOnMissingKeys: true, ErrorOnParseErrors: true}
 	env := cptplanet.NewEnvironment(envSettings)
 
 	host := env.String("HOST", "127.0.0.1", "host to bind")
