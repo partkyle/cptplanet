@@ -23,10 +23,11 @@ var l = logger(false)
 type ParseErr struct {
 	MissingKeys []string
 	ExtraKeys   []string
+	ParseErrors []string
 }
 
 func (p *ParseErr) isError() bool {
-	return len(p.MissingKeys) > 0 || len(p.ExtraKeys) > 0
+	return len(p.MissingKeys) > 0 || len(p.ExtraKeys) > 0 || len(p.ParseErrors) > 0
 }
 
 func (p *ParseErr) addMissing(key string) {
@@ -45,8 +46,16 @@ func (p *ParseErr) addExtra(key string) {
 	p.ExtraKeys = append(p.ExtraKeys, key)
 }
 
+func (p *ParseErr) addParseErr(key string) {
+	if p.ParseErrors == nil {
+		p.ParseErrors = make([]string, 0, 1)
+	}
+
+	p.ParseErrors = append(p.ParseErrors, key)
+}
+
 func (p *ParseErr) Error() string {
-	return fmt.Sprintf("Missing keys: %v, Extra keys: %v", p.MissingKeys, p.ExtraKeys)
+	return fmt.Sprintf("Missing keys: %v, Extra keys: %v, Parse Errors: %v", p.MissingKeys, p.ExtraKeys, p.ParseErrors)
 }
 
 type Value flag.Value
@@ -55,6 +64,7 @@ type Settings struct {
 	Prefix             string
 	ErrorOnExtraKeys   bool
 	ErrorOnMissingKeys bool
+	ErrorOnParseErrors bool
 }
 
 var DefaultSettings = Settings{Prefix: getAppName(os.Args[0]) + "_"}
@@ -100,9 +110,22 @@ func (e *EnvSet) Parse() error {
 
 			err := e.Set(key, value)
 			if err != nil {
+
 				if strings.HasPrefix(err.Error(), "no such flag -") {
 					if e.ErrorOnExtraKeys {
 						parseErr.addExtra(envKey)
+					}
+
+					continue
+				}
+
+				if strings.Contains(err.Error(), "invalid syntax") {
+					// replace the default value
+					originalFlag := e.Lookup(key)
+					e.Set(key, originalFlag.DefValue)
+
+					if e.ErrorOnParseErrors {
+						parseErr.addParseErr(envKey)
 					}
 
 					continue

@@ -146,6 +146,50 @@ func TestErrorOnMissingKeys(t *testing.T) {
 	err := env.Parse()
 
 	if err == nil {
-		t.Error("Expected error; got %s", err)
+		t.Errorf("Expected error; got %s", err)
+	}
+}
+
+func TestDoesNotErrorWhenErrorOnParseErrorsIsFalse(t *testing.T) {
+	settings := Settings{ErrorOnParseErrors: false}
+	env := NewEnvironment(settings)
+
+	os.Clearenv()
+
+	badint := "this is a string value"
+	os.Setenv("INT", badint)
+
+	// consume the environment
+	defaultInt := -1
+	resultInt := env.Int("INT", defaultInt, "")
+
+	err := env.Parse()
+
+	if err != nil {
+		t.Errorf("Unexpected error; got %s", err)
+	}
+
+	if *resultInt != -1 {
+		t.Errorf("Unparsed value was not the expected default: Have %d, want %d", resultInt, defaultInt)
+	}
+}
+
+func TestErrorOnParseErrors(t *testing.T) {
+	settings := Settings{ErrorOnParseErrors: true}
+	env := NewEnvironment(settings)
+
+	os.Clearenv()
+
+	badint := "this is a string value"
+	os.Setenv("INT", badint)
+
+	// consume the environment
+	defaultInt := -1
+	env.Int("INT", defaultInt, "")
+
+	err := env.Parse()
+
+	if err == nil {
+		t.Errorf("Expected error; got nil")
 	}
 }
