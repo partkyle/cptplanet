@@ -10,15 +10,27 @@ import (
 	"time"
 )
 
-type logger bool
+type logger struct{ shouldLog bool }
 
 func (l *logger) Printf(s string, v ...interface{}) {
-	if *l {
+	if l.shouldLog {
 		log.Printf(s, v...)
 	}
 }
 
-var l = logger(false)
+var (
+	internalEnv = NewEnvironment(Settings{Prefix: "CPTPLANET_"})
+	l           = logger{}
+)
+
+func init() {
+	internalEnv.BoolVar(&l.shouldLog, "LOG", false, "whether or not to log data")
+
+	err := internalEnv.Parse()
+	if err != nil {
+		log.Fatalf("error occured parsing config: %s", err)
+	}
+}
 
 type ParseErr struct {
 	MissingKeys   []string
@@ -139,7 +151,7 @@ func (e *EnvSet) Parse() error {
 
 	for _, arg := range os.Environ() {
 		if strings.HasPrefix(arg, e.Prefix) {
-			// split env on "="
+			// os.Environ returns strings in the format "KEY=VALUE"
 			s := strings.SplitN(arg, "=", 2)
 
 			envKey := s[0]
@@ -154,10 +166,14 @@ func (e *EnvSet) Parse() error {
 			if err != nil {
 				switch {
 				case strings.HasPrefix(err.Error(), "no such flag -"):
+					l.Printf("received invalid flag: %s", err)
+
 					if e.ErrorOnExtraKeys {
 						parseErr.addExtra(envKey)
 					}
 				case strings.Contains(err.Error(), "invalid syntax"):
+					l.Printf("received parse error: %s", err)
+
 					// replace the default value
 					originalFlag := e.Lookup(key)
 					e.Set(key, originalFlag.DefValue)
