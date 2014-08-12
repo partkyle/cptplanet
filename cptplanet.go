@@ -19,14 +19,16 @@ func (l *logger) Printf(s string, v ...interface{}) {
 }
 
 var (
-	internalEnv = NewEnvironment(Settings{Prefix: "CPTPLANET_"})
-	l           = logger{}
+	internalEnv   = NewEnvironment(Settings{Prefix: "CPTPLANET_"})
+	l             = logger{}
+	printDefaults bool
 )
 
 func init() {
 	internalEnv.BoolVar(&l.shouldLog, "LOG", false, "whether or not to log data")
+	internalEnv.BoolVar(&printDefaults, "USAGE", false, "print usage and exit")
 
-	err := internalEnv.Parse()
+	err := internalEnv.parse()
 	if err != nil {
 		log.Fatalf("error occured parsing config: %s", err)
 	}
@@ -147,6 +149,15 @@ func (e *EnvSet) PrintDefaults() {
 }
 
 func (e *EnvSet) Parse() error {
+	if printDefaults {
+		e.PrintDefaults()
+		os.Exit(1)
+	}
+
+	return e.parse()
+}
+
+func (e *EnvSet) parse() error {
 	parseErr := &ParseErr{}
 
 	for _, arg := range os.Environ() {
