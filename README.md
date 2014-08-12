@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/partkyle/cptplanet.svg?branch=master)](https://travis-ci.org/partkyle/cptplanet)
+
 cptplanet
 =========
 
