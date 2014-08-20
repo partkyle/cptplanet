@@ -1,7 +1,7 @@
-[![Build Status](https://travis-ci.org/partkyle/cptplanet.svg?branch=master)](https://travis-ci.org/partkyle/cptplanet)
-
 cptplanet
 =========
+
+[![Build Status](https://travis-ci.org/partkyle/cptplanet.svg?branch=master)](https://travis-ci.org/partkyle/cptplanet)
 
 The config parser that cares about the environment.
 
