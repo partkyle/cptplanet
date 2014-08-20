@@ -1,0 +1,5 @@
+image: go1.3.1
+env:
+  - GOROOT=/usr/local/go
+run:
+  - go test ./... -v
